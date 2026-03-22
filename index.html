@@ -524,7 +524,7 @@ const MODES = [
 const Q_COUNT = 20;
 let state = {screen:‘splash’, modeIdx:0, questions:[], current:0, score:0, answered:false, selectedIdx:null, streak:0, bestStreak:0};
 
-function shuffle(a){const b=[…a];for(let i=b.length-1;i>0;i–){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 function pool(){return ETFs.filter(MODES[state.modeIdx].fn);}
 function fumFmt(f){return f>=1000?`$${(f/1000).toFixed(1)}b`:`$${f}m`;}
 function fumStars(f){if(f>=5000)return’★★★★★’;if(f>=2000)return’★★★★’;if(f>=1000)return’★★★’;if(f>=300)return’★★’;return’★’;}
@@ -534,7 +534,7 @@ const p=pool();
 const n=Math.min(Q_COUNT,p.length);
 return shuffle(p).slice(0,n).map(etf=>{
 const others=shuffle(ETFs.filter(e=>e.ticker!==etf.ticker)).slice(0,3);
-const opts=shuffle([etf,…others]);
+const opts=shuffle([etf,...others]);
 return {etf,opts,correctIdx:opts.indexOf(etf)};
 });
 }
