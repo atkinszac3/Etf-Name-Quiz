@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASX ETF Ticker Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2128;
+    --border-bright: #2e3240;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.12);
+    --accent-glow: rgba(0,229,160,0.3);
+    --wrong: #ff4d6d;
+    --wrong-dim: rgba(255,77,109,0.12);
+    --gold: #f5c842;
+    --gold-dim: rgba(245,200,66,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(0,229,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .app { width: 100%; max-width: 580px; animation: fadeUp 0.5s ease both; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; }
+  .logo { display:flex; flex-direction:column; }
+  .logo-main { font-size:13px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent); }
+  .logo-sub { font-size:11px; color:var(--muted); letter-spacing:0.08em; margin-top:2px; font-family:'DM Mono',monospace; }
+  .stats-bar { display:flex; gap:20px; align-items:center; }
+  .stat { text-align:right; }
+  .stat-val { font-size:18px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+  .stat-val.correct { color:var(--accent); }
+  .stat-val.total { color:var(--muted); }
+  .stat-label { font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-top:2px; font-family:'DM Mono',monospace; }
+  .divider-v { width:1px; height:28px; background:var(--border); }
+  .progress-wrap { margin-bottom:32px; }
+  .progress-meta { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:0.06em; margin-bottom:8px; }
+  .progress-track { height:3px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width 0.5s cubic-bezier(0.4,0,0.2,1); box-shadow:0 0 10px var(--accent-glow); }
+  .category-badge { display:inline-flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 10px; font-size:10px; font-family:'DM Mono',monospace; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:20px; }
+  .category-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); opacity:0.7; }
+  .question-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px; margin-bottom:16px; position:relative; overflow:hidden; }
+  .question-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--accent-dim),transparent); }
+  .q-label { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); font-family:'DM Mono',monospace; margin-bottom:14px; }
+  .q-text { font-size:21px; font-weight:700; line-height:1.3; color:var(--text); }
+  .q-hint { margin-top:12px; font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; display:flex; align-items:flex-start; gap:6px; flex-wrap:wrap; line-height:1.5; }
+  .hint-tag { background:var(--accent-dim); color:var(--accent); border-radius:4px; padding:2px 7px; font-size:10px; letter-spacing:0.1em; flex-shrink:0; margin-top:1px; }
+  .options { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .option { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; cursor:pointer; transition:all 0.15s ease; text-align:left; }
+  .option:hover:not(:disabled) { border-color:var(--border-bright); background:#161920; transform:translateY(-1px); }
+  .option:disabled { cursor:default; }
+  .option-letter { font-size:9px; font-family:'DM Mono',monospace; letter-spacing:0.12em; color:var(--muted); margin-bottom:6px; text-transform:uppercase; }
+  .option-ticker { font-size:22px; font-weight:800; font-family:'DM Mono',monospace; letter-spacing:0.06em; color:var(--text); line-height:1; }
+  .option.correct { border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 20px rgba(0,229,160,0.15); }
+  .option.correct .option-ticker { color:var(--accent); }
+  .option.correct .option-letter { color:var(--accent); opacity:0.7; }
+  .option.wrong { border-color:var(--wrong); background:var(--wrong-dim); }
+  .option.wrong .option-ticker { color:var(--wrong); }
+  .option.reveal { border-color:var(--accent); background:var(--accent-dim); opacity:0.5; }
+  .option.reveal .option-ticker { color:var(--accent); }
+  .feedback { border-radius:10px; padding:14px 18px; margin-bottom:16px; display:flex; align-items:flex-start; gap:12px; animation:fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  .feedback.correct-fb { background:var(--accent-dim); border:1px solid rgba(0,229,160,0.25); }
+  .feedback.wrong-fb { background:var(--wrong-dim); border:1px solid rgba(255,77,109,0.25); }
+  .fb-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+  .fb-title { font-size:13px; font-weight:700; margin-bottom:3px; }
+  .feedback.correct-fb .fb-title { color:var(--accent); }
+  .feedback.wrong-fb .fb-title { color:var(--wrong); }
+  .fb-detail { font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; line-height:1.6; }
+  .btn-next { width:100%; background:var(--accent); color:#000; border:none; border-radius:10px; padding:15px; font-family:'Syne',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; transition:all 0.15s ease; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .btn-next:hover { background:#00ffb3; transform:translateY(-1px); box-shadow:0 8px 24px var(--accent-glow); }
+  .mode-selector { display:flex; gap:6px; margin-bottom:20px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px; flex-wrap:wrap; }
+  .mode-btn { flex:1; min-width:70px; background:none; border:none; border-radius:7px; padding:9px 6px; font-family:'Syne',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); cursor:pointer; transition:all 0.15s ease; text-align:center; line-height:1.4; }
+  .mode-btn.active { background:var(--bg); color:var(--text); border:1px solid var(--border-bright); }
+  .mode-btn .mode-count { display:block; font-size:9px; font-family:'DM Mono',monospace; color:var(--muted); margin-top:2px; letter-spacing:0.06em; }
+  .mode-btn.active .mode-count { color:var(--accent); }
+  .results { text-align:center; animation:fadeUp 0.4s ease; }
+  .results-score { font-size:80px; font-weight:800; line-height:1; margin:8px 0; }
+  .results-score.great { color:var(--accent); }
+  .results-score.ok { color:var(--gold); }
+  .results-score.poor { color:var(--wrong); }
+  .results-label { font-size:11px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); font-family:'DM Mono',monospace; }
+  .results-msg { font-size:18px; font-weight:700; margin:20px 0 8px; }
+  .results-sub { font-size:13px; color:var(--muted); margin-bottom:32px; line-height:1.5; }
+  .streak-badge { display:inline-flex; align-items:center; gap:6px; background:var(--gold-dim); border:1px solid rgba(245,200,66,0.3); border-radius:8px; padding:8px 16px; font-size:12px; color:var(--gold); font-family:'DM Mono',monospace; margin-bottom:28px; }
+  .btn-restart { width:100%; background:none; border:1px solid var(--border-bright); color:var(--text); border-radius:10px; padding:15px; font-family:'Syne',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; transition:all 0.15s ease; margin-top:10px; }
+  .btn-restart:hover { border-color:var(--accent); color:var(--accent); }
+  .splash { text-align:center; animation:fadeUp 0.4s ease; }
+  .splash-title { font-size:38px; font-weight:800; line-height:1.1; margin-bottom:12px; }
+  .splash-title span { color:var(--accent); }
+  .splash-sub { font-size:14px; color:var(--muted); line-height:1.6; margin-bottom:28px; max-width:400px; margin-left:auto; margin-right:auto; }
+  .issuers-grid { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:28px; }
+  .issuer-chip { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 12px; font-size:11px; font-family:'DM Mono',monospace; color:var(--muted); letter-spacing:0.06em; }
+  .issuer-chip span { color:var(--accent); margin-left:5px; font-size:10px; }
+  .btn-start { width:100%; max-width:280px; background:var(--accent); color:#000; border:none; border-radius:10px; padding:16px; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:all 0.15s ease; }
+  .btn-start:hover { background:#00ffb3; box-shadow:0 8px 30px var(--accent-glow); transform:translateY(-2px); }
+  .note { font-size:10px; font-family:'DM Mono',monospace; color:var(--muted); margin-top:14px; letter-spacing:0.05em; opacity:0.7; line-height:1.6; }
+  .competitors { margin-bottom:16px; animation:fadeIn 0.25s ease 0.1s both; }
+  .competitors-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); font-family:'DM Mono',monospace; margin-bottom:8px; }
+  .competitors-list { display:flex; flex-direction:column; gap:6px; }
+  .competitor-row { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 12px; }
+  .competitor-ticker { font-family:'DM Mono',monospace; font-weight:700; font-size:14px; color:var(--text); min-width:52px; letter-spacing:0.04em; }
+  .competitor-issuer { font-family:'DM Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:0.08em; text-transform:uppercase; min-width:70px; }
+  .competitor-name { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; line-height:1.3; flex:1; }
+  .competitor-fum { font-family:'DM Mono',monospace; font-size:10px; color:var(--gold); white-space:nowrap; }
+  @media (max-width:480px) { .options { grid-template-columns:1fr; } .q-text { font-size:17px; } .option-ticker { font-size:18px; } .mode-btn { min-width:50px; font-size:9px; padding:7px 4px; } .competitor-issuer { min-width:55px; } }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+const ETFs = [
+  // VANGUARD
+  {ticker:"VAS",   issuer:"Vanguard",    name:"Australian Shares Index ETF",                    cat:"AUS Equities",   fum:22585, hint:"S&P/ASX 300 — 300 largest ASX stocks"},
+  {ticker:"VGS",   issuer:"Vanguard",    name:"MSCI Index International Shares ETF",            cat:"Global Equities",fum:13500, hint:"Developed world ex-Australia, unhedged"},
+  {ticker:"VDHG",  issuer:"Vanguard",    name:"Diversified High Growth Index ETF",              cat:"Multi-Asset",    fum:8000,  hint:"90% growth / 10% defensive all-in-one fund"},
+  {ticker:"VHY",   issuer:"Vanguard",    name:"Australian Shares High Yield ETF",               cat:"AUS Income",     fum:6279,  hint:"High forecast dividend yield ASX stocks"},
+  {ticker:"VGAD",  issuer:"Vanguard",    name:"MSCI International Shares (Hedged) ETF",         cat:"Global Equities",fum:4800,  hint:"Developed world equities, AUD/USD hedged"},
+  {ticker:"VTS",   issuer:"Vanguard",    name:"US Total Market Shares Index ETF",               cat:"US Equities",    fum:3900,  hint:"Entire US share market — CRSP broad index"},
+  {ticker:"VAP",   issuer:"Vanguard",    name:"Australian Property Securities Index ETF",       cat:"AUS Property",   fum:3286,  hint:"S&P/ASX 300 A-REITs — all listed property"},
+  {ticker:"VDGR",  issuer:"Vanguard",    name:"Diversified Growth Index ETF",                   cat:"Multi-Asset",    fum:2200,  hint:"70% growth / 30% defensive allocation"},
+  {ticker:"VGE",   issuer:"Vanguard",    name:"FTSE Emerging Markets Shares ETF",               cat:"EM Equities",    fum:1900,  hint:"Broad emerging market equities ex-Australia"},
+  {ticker:"VEU",   issuer:"Vanguard",    name:"All-World ex-US Shares Index ETF",               cat:"Global Equities",fum:1700,  hint:"Global equities ex-United States"},
+  {ticker:"VISM",  issuer:"Vanguard",    name:"International Small Companies Index ETF",        cat:"Global Equities",fum:1600,  hint:"MSCI World small-cap, ex-Australia"},
+  {ticker:"VBND",  issuer:"Vanguard",    name:"Global Aggregate Bond Index ETF (Hedged)",       cat:"Fixed Income",   fum:900,   hint:"Global investment grade bonds, AUD hedged"},
+  {ticker:"VDBA",  issuer:"Vanguard",    name:"Diversified Balanced Index ETF",                 cat:"Multi-Asset",    fum:1200,  hint:"50% growth / 50% defensive allocation"},
+  {ticker:"VESG",  issuer:"Vanguard",    name:"Ethically Conscious International Shares ETF",   cat:"Global ESG",     fum:1300,  hint:"Developed markets ex-fossil fuels/weapons"},
+  {ticker:"VAF",   issuer:"Vanguard",    name:"Australian Fixed Interest Index ETF",            cat:"Fixed Income",   fum:1100,  hint:"Broad AUD bond market — govt + corporate"},
+  {ticker:"VGB",   issuer:"Vanguard",    name:"Australian Government Bond Index ETF",           cat:"Fixed Income",   fum:700,   hint:"Australian federal government bonds only"},
+  {ticker:"VSO",   issuer:"Vanguard",    name:"MSCI Australian Small Companies Index ETF",      cat:"AUS Equities",   fum:1196,  hint:"ASX small-cap stocks via MSCI index"},
+  {ticker:"VBLD",  issuer:"Vanguard",    name:"Global Infrastructure Index ETF",                cat:"Global Equities",fum:750,   hint:"Developed market listed infrastructure"},
+  {ticker:"VETH",  issuer:"Vanguard",    name:"Ethically Conscious Australian Shares ETF",      cat:"AUS ESG",        fum:635,   hint:"ASX 300 with ESG exclusion screens"},
+  {ticker:"VDCO",  issuer:"Vanguard",    name:"Diversified Conservative Index ETF",             cat:"Multi-Asset",    fum:500,   hint:"30% growth / 70% defensive, conservative"},
+  {ticker:"VEQ",   issuer:"Vanguard",    name:"FTSE Europe Shares ETF",                         cat:"Global Equities",fum:420,   hint:"European developed market equities"},
+  {ticker:"VACF",  issuer:"Vanguard",    name:"Australian Corporate Fixed Interest Index ETF",  cat:"Fixed Income",   fum:420,   hint:"AUD corporate bonds, 0+ year maturity"},
+  {ticker:"VAE",   issuer:"Vanguard",    name:"FTSE Asia ex Japan Shares Index ETF",            cat:"Asia Equities",  fum:280,   hint:"Asia Pacific ex-Japan, Australia and NZ"},
+  {ticker:"VIF",   issuer:"Vanguard",    name:"International Fixed Interest Index ETF (Hedged)",cat:"Fixed Income",   fum:360,   hint:"Global government bonds, AUD hedged"},
+  {ticker:"VLC",   issuer:"Vanguard",    name:"MSCI Australian Large Companies Index ETF",      cat:"AUS Equities",   fum:310,   hint:"Top ~25 ASX stocks by market capitalisation"},
+  {ticker:"VGMF",  issuer:"Vanguard",    name:"Global Multi-Factor Active ETF",                 cat:"Global Equities",fum:290,   hint:"Active multi-factor global equity strategy"},
+  {ticker:"VCF",   issuer:"Vanguard",    name:"International Credit Securities Index ETF (Hedged)",cat:"Fixed Income",fum:220,  hint:"Global IG corporate bonds, AUD hedged"},
+  {ticker:"VMIN",  issuer:"Vanguard",    name:"Global Minimum Volatility Active ETF",           cat:"Global Equities",fum:200,   hint:"Active low-volatility global equities"},
+  {ticker:"VVLU",  issuer:"Vanguard",    name:"Global Value Equity Active ETF",                 cat:"Global Equities",fum:190,   hint:"Active value-factor global equities"},
+  {ticker:"VEFI",  issuer:"Vanguard",    name:"Ethically Conscious Global Aggregate Bond ETF",  cat:"Fixed Income",   fum:180,   hint:"ESG-screened global bonds, AUD hedged"},
+
+// BETASHARES
+{ticker:“A200”,  issuer:“BetaShares”,  name:“Australia 200 ETF”,                              cat:“AUS Equities”,   fum:8880,  hint:“200 largest ASX stocks, ultra-low 0.04% fee”},
+{ticker:“NDQ”,   issuer:“BetaShares”,  name:“NASDAQ 100 ETF”,                                 cat:“US Tech”,        fum:7600,  hint:“100 largest non-financial Nasdaq companies”},
+{ticker:“AAA”,   issuer:“BetaShares”,  name:“Australian High Interest Cash ETF”,              cat:“Cash”,           fum:4400,  hint:“At-call bank deposit rate, monthly distributions”},
+{ticker:“DHHF”,  issuer:“BetaShares”,  name:“Diversified All Growth ETF”,                    cat:“Multi-Asset”,    fum:3500,  hint:“100% growth across global and AUS equities”},
+{ticker:“HBRD”,  issuer:“BetaShares”,  name:“Active Australian Hybrids Fund”,                 cat:“Fixed Income”,   fum:2400,  hint:“Bank hybrid securities — managed by Coolabah”},
+{ticker:“ETHI”,  issuer:“BetaShares”,  name:“Global Sustainability Leaders ETF”,              cat:“Global ESG”,     fum:2100,  hint:“ESG-screened global large-caps, unhedged”},
+{ticker:“BGBL”,  issuer:“BetaShares”,  name:“Global Shares ETF”,                              cat:“Global Equities”,fum:1900,  hint:“Developed markets ex-Australia, ultra-low fee”},
+{ticker:“QPON”,  issuer:“BetaShares”,  name:“Australian Bank Senior Floating Rate Bond ETF”,  cat:“Fixed Income”,   fum:1700,  hint:“Senior floating-rate bonds from major banks”},
+{ticker:“HNDQ”,  issuer:“BetaShares”,  name:“NASDAQ 100 ETF Currency Hedged”,                 cat:“US Tech”,        fum:1500,  hint:“NASDAQ 100 with full AUD/USD currency hedge”},
+{ticker:“QLTY”,  issuer:“BetaShares”,  name:“Global Quality Leaders ETF”,                    cat:“Global Equities”,fum:1400,  hint:“Quality-factor global equities, unhedged”},
+{ticker:“FAIR”,  issuer:“BetaShares”,  name:“Australian Sustainability Leaders ETF”,          cat:“AUS ESG”,        fum:1224,  hint:“ASX stocks screened for ESG criteria”},
+{ticker:“AASF”,  issuer:“BetaShares”,  name:“Airlie Australian Share Fund”,                   cat:“AUS Equities”,   fum:1002,  hint:“Active Australian equities — Airlie Funds Mgmt”},
+{ticker:“AGVT”,  issuer:“BetaShares”,  name:“Australian Government Bond ETF”,                 cat:“Fixed Income”,   fum:980,   hint:“AUS government bonds, 7–12 year duration”},
+{ticker:“CRED”,  issuer:“BetaShares”,  name:“Australian Investment Grade Corporate Bond ETF”, cat:“Fixed Income”,   fum:950,   hint:“Investment grade AUD corporate bonds”},
+{ticker:“QOZ”,   issuer:“BetaShares”,  name:“FTSE RAFI Australia 200 ETF”,                    cat:“AUS Equities”,   fum:945,   hint:“Fundamental-weighted ASX 200 strategy”},
+{ticker:“QRE”,   issuer:“BetaShares”,  name:“S&P/ASX 200 Resources Sector ETF”,               cat:“AUS Resources”,  fum:468,   hint:“ASX 200 resources and materials sector”},
+{ticker:“GEAR”,  issuer:“BetaShares”,  name:“Geared Australian Equity Fund”,                  cat:“Alternatives”,   fum:310,   hint:“~2x leveraged long ASX 200 exposure”},
+{ticker:“GGUS”,  issuer:“BetaShares”,  name:“Geared US Equity Fund Currency Hedged”,          cat:“Alternatives”,   fum:280,   hint:“~2x leveraged long S&P 500, AUD hedged”},
+{ticker:“HQLT”,  issuer:“BetaShares”,  name:“Global Quality Leaders ETF Currency Hedged”,     cat:“Global Equities”,fum:580,   hint:“Quality-factor global equities, AUD hedged”},
+{ticker:“INCM”,  issuer:“BetaShares”,  name:“Global Income Leaders ETF”,                     cat:“Global Income”,  fum:480,   hint:“High-dividend global equities index”},
+{ticker:“YMAX”,  issuer:“BetaShares”,  name:“S&P/ASX 200 Yield Maximiser Fund”,               cat:“AUS Income”,     fum:639,   hint:“Covered call overlay on ASX top 20 stocks”},
+{ticker:“EX20”,  issuer:“BetaShares”,  name:“Australian Ex-20 Portfolio Diversifier ETF”,    cat:“AUS Equities”,   fum:616,   hint:“ASX stocks ranked 21–200, excludes mega-caps”},
+{ticker:“OZBD”,  issuer:“BetaShares”,  name:“Australian Composite Bond ETF”,                  cat:“Fixed Income”,   fum:600,   hint:“Broad AUS bond index with enhanced yield”},
+{ticker:“HACK”,  issuer:“BetaShares”,  name:“Global Cybersecurity ETF”,                       cat:“Thematic”,       fum:580,   hint:“Pure-play global cybersecurity companies”},
+{ticker:“DZZF”,  issuer:“BetaShares”,  name:“Ethical Diversified High Growth ETF”,            cat:“Multi-Asset”,    fum:450,   hint:“ESG version of DHHF — 100% growth”},
+{ticker:“ERTH”,  issuer:“BetaShares”,  name:“Climate Change Innovation ETF”,                  cat:“Thematic”,       fum:440,   hint:“Climate and clean environment innovators”},
+{ticker:“ATEC”,  issuer:“BetaShares”,  name:“S&P/ASX Australian Technology ETF”,              cat:“AUS Tech”,       fum:418,   hint:“ASX All Technology Index tracking fund”},
+{ticker:“ASIA”,  issuer:“BetaShares”,  name:“Asia Technology Tigers ETF”,                     cat:“Asia Tech”,      fum:510,   hint:“Asian tech leaders — China, Taiwan, Korea”},
+{ticker:“GBND”,  issuer:“BetaShares”,  name:“Sustainability Leaders Diversified Bond ETF”,    cat:“Fixed Income”,   fum:400,   hint:“ESG-screened AUS and global bonds, hedged”},
+{ticker:“IIND”,  issuer:“BetaShares”,  name:“India Quality ETF”,                              cat:“EM Equities”,    fum:390,   hint:“Quality-screened India-listed equities”},
+{ticker:“BHYB”,  issuer:“BetaShares”,  name:“Australian Major Bank Hybrids Index ETF”,        cat:“Fixed Income”,   fum:370,   hint:“Bank hybrid securities index tracker”},
+{ticker:“QAU”,   issuer:“BetaShares”,  name:“Gold Bullion ETF Currency Hedged”,               cat:“Commodities”,    fum:330,   hint:“Physical gold exposure, AUD/USD hedged”},
+{ticker:“GGOV”,  issuer:“BetaShares”,  name:“Global Government Bond 20+ Year ETF (Hedged)”,  cat:“Fixed Income”,   fum:340,   hint:“Long-duration global govt bonds, AUD hedged”},
+{ticker:“UMAX”,  issuer:“BetaShares”,  name:“S&P 500 Yield Maximiser Fund”,                   cat:“US Equities”,    fum:310,   hint:“Covered call overlay on S&P 500”},
+{ticker:“QUS”,   issuer:“BetaShares”,  name:“S&P 500 Equal Weight ETF”,                       cat:“US Equities”,    fum:285,   hint:“S&P 500 with equal weighting vs market-cap”},
+{ticker:“HVST”,  issuer:“BetaShares”,  name:“Australian Dividend Harvester Fund”,             cat:“AUS Income”,     fum:284,   hint:“High dividend harvesting with covered calls”},
+{ticker:“CRYP”,  issuer:“BetaShares”,  name:“Crypto Innovators ETF”,                          cat:“Thematic”,       fum:275,   hint:“Crypto-related companies and miners globally”},
+{ticker:“QBTC”,  issuer:“BetaShares”,  name:“Bitcoin ETF”,                                    cat:“Thematic”,       fum:220,   hint:“Direct Bitcoin price exposure via ETF”},
+{ticker:“DGGF”,  issuer:“BetaShares”,  name:“Ethical Diversified Growth ETF”,                 cat:“Multi-Asset”,    fum:310,   hint:“ESG 70/30 growth/defensive multi-asset”},
+{ticker:“HEUR”,  issuer:“BetaShares”,  name:“Europe ETF Currency Hedged”,                     cat:“Global Equities”,fum:260,   hint:“S&P Eurozone Exporters, AUD hedged”},
+{ticker:“HJPN”,  issuer:“BetaShares”,  name:“Japan ETF Currency Hedged”,                      cat:“Global Equities”,fum:250,   hint:“S&P Japan Exporters, AUD hedged”},
+{ticker:“CLDD”,  issuer:“BetaShares”,  name:“Cloud Computing ETF”,                            cat:“Thematic”,       fum:245,   hint:“Global pure-play cloud computing companies”},
+{ticker:“RBTZ”,  issuer:“BetaShares”,  name:“Global Robotics and Artificial Intelligence ETF”,cat:“Thematic”,       fum:295,   hint:“Robotics, automation and AI companies globally”},
+{ticker:“BNKS”,  issuer:“BetaShares”,  name:“Global Banks ETF Currency Hedged”,               cat:“Global Equities”,fum:240,   hint:“Global ex-Australia banks, AUD hedged”},
+{ticker:“F100”,  issuer:“BetaShares”,  name:“FTSE 100 ETF”,                                   cat:“Global Equities”,fum:230,   hint:“100 largest UK-listed companies”},
+{ticker:“FUEL”,  issuer:“BetaShares”,  name:“Global Energy Companies ETF Hedged”,             cat:“Global Equities”,fum:160,   hint:“Global ex-Australia energy companies”},
+{ticker:“DRUG”,  issuer:“BetaShares”,  name:“Global Healthcare ETF Currency Hedged”,          cat:“Global Equities”,fum:155,   hint:“Global ex-Australia healthcare sector”},
+{ticker:“MNRS”,  issuer:“BetaShares”,  name:“Global Gold Miners ETF Currency Hedged”,         cat:“Commodities”,    fum:140,   hint:“Global gold mining companies, AUD hedged”},
+{ticker:“IPAY”,  issuer:“BetaShares”,  name:“Future of Payments ETF”,                         cat:“Thematic”,       fum:130,   hint:“Global digital payments and fintech”},
+{ticker:“DRIV”,  issuer:“BetaShares”,  name:“Electric Vehicles and Future Mobility ETF”,      cat:“Thematic”,       fum:120,   hint:“EVs, batteries and autonomous vehicle tech”},
+{ticker:“FOOD”,  issuer:“BetaShares”,  name:“Global Agriculture ETF Currency Hedged”,         cat:“Thematic”,       fum:145,   hint:“Global agriculture companies, AUD hedged”},
+{ticker:“IBUY”,  issuer:“BetaShares”,  name:“Online Retail and E-Commerce ETF”,               cat:“Thematic”,       fum:125,   hint:“Global online retail and e-commerce”},
+{ticker:“SMLL”,  issuer:“BetaShares”,  name:“Australian Small Companies Select Fund”,         cat:“AUS Equities”,   fum:322,   hint:“Active small-cap Australian equities”},
+{ticker:“HETH”,  issuer:“BetaShares”,  name:“Global Sustainability Leaders ETF Hedged”,       cat:“Global ESG”,     fum:270,   hint:“ESG-screened global equities, AUD hedged”},
+{ticker:“QFN”,   issuer:“BetaShares”,  name:“S&P/ASX 200 Financials Sector ETF”,              cat:“AUS Financials”, fum:115,   hint:“ASX 200 financials sector exposure”},
+{ticker:“BEAR”,  issuer:“BetaShares”,  name:“Australian Equities Bear Hedge Fund”,            cat:“Alternatives”,   fum:200,   hint:“Inverse (short) ASX 200 daily return”},
+{ticker:“BBOZ”,  issuer:“BetaShares”,  name:“Australian Equities Strong Bear Hedge Fund”,     cat:“Alternatives”,   fum:190,   hint:“2x inverse ASX 200 daily return”},
+{ticker:“BBUS”,  issuer:“BetaShares”,  name:“US Equities Strong Bear Hedge Fund”,             cat:“Alternatives”,   fum:170,   hint:“2x inverse US equity exposure, AUD hedged”},
+{ticker:“GAME”,  issuer:“BetaShares”,  name:“Video Games and Esports ETF”,                    cat:“Thematic”,       fum:100,   hint:“Global video gaming and esports companies”},
+{ticker:“OOO”,   issuer:“BetaShares”,  name:“Crude Oil Index ETF Currency Hedged Synthetic”,  cat:“Commodities”,    fum:95,    hint:“Synthetic crude oil futures price exposure”},
+{ticker:“DBBF”,  issuer:“BetaShares”,  name:“Ethical Diversified Balanced ETF”,               cat:“Multi-Asset”,    fum:220,   hint:“ESG 50/50 growth/defensive balanced fund”},
+
+// ISHARES (BLACKROCK)
+{ticker:“IVV”,   issuer:“iShares”,     name:“Core S&P 500 ETF”,                               cat:“US Equities”,    fum:11150, hint:“500 largest US companies, ultra-low 0.04% fee”},
+{ticker:“IOZ”,   issuer:“iShares”,     name:“Core S&P/ASX 200 ETF”,                           cat:“AUS Equities”,   fum:7798,  hint:“Top 200 ASX stocks — BlackRock flagship”},
+{ticker:“IOO”,   issuer:“iShares”,     name:“Global 100 ETF”,                                 cat:“Global Equities”,fum:5401,  hint:“100 largest global companies by market cap”},
+{ticker:“IHVV”,  issuer:“iShares”,     name:“S&P 500 AUD Hedged ETF”,                         cat:“US Equities”,    fum:3200,  hint:“S&P 500 with full AUD/USD currency hedge”},
+{ticker:“IWLD”,  issuer:“iShares”,     name:“Core MSCI World ex Australia ESG Leaders ETF”,   cat:“Global ESG”,     fum:1524,  hint:“Developed world ex-AUS with ESG screen”},
+{ticker:“IHWL”,  issuer:“iShares”,     name:“Core MSCI World All Cap AUD Hedged ETF”,         cat:“Global Equities”,fum:1100,  hint:“All-cap world equities, fully AUD hedged”},
+{ticker:“IAF”,   issuer:“iShares”,     name:“Core Australian Composite Bond ETF”,             cat:“Fixed Income”,   fum:900,   hint:“Bloomberg AusBond Composite index tracker”},
+{ticker:“IHCB”,  issuer:“iShares”,     name:“Core Global Corporate Bond (AUD Hedged) ETF”,    cat:“Fixed Income”,   fum:820,   hint:“Global IG corporate bonds, AUD hedged”},
+{ticker:“ILC”,   issuer:“iShares”,     name:“S&P/ASX 20 ETF”,                                 cat:“AUS Equities”,   fum:725,   hint:“20 largest blue-chip ASX companies only”},
+{ticker:“IEM”,   issuer:“iShares”,     name:“MSCI Emerging Markets ETF”,                      cat:“EM Equities”,    fum:700,   hint:“Broad emerging market equities, AUS-listed”},
+{ticker:“SFY2”,  issuer:“iShares”,     name:“SPDR S&P/ASX 50 Fund”,                           cat:“AUS Equities”,   fum:737,   hint:“50 largest ASX blue-chip companies”},
+{ticker:“IVE”,   issuer:“iShares”,     name:“MSCI EAFE ETF”,                                  cat:“Global Equities”,fum:647,   hint:“Developed markets ex-US and Canada”},
+{ticker:“IESG”,  issuer:“iShares”,     name:“Core MSCI Australia ESG ETF”,                    cat:“AUS ESG”,        fum:460,   hint:“ASX stocks screened by MSCI ESG leaders”},
+{ticker:“IEMS”,  issuer:“iShares”,     name:“Core MSCI Emerging Markets IMI ETF”,             cat:“EM Equities”,    fum:500,   hint:“Investable Market Index EM coverage”},
+{ticker:“IJP”,   issuer:“iShares”,     name:“MSCI Japan ETF”,                                 cat:“Global Equities”,fum:420,   hint:“Japan large- and mid-cap equities”},
+{ticker:“IEU”,   issuer:“iShares”,     name:“Europe ETF”,                                     cat:“Global Equities”,fum:390,   hint:“S&P Europe 350 — broad European equities”},
+{ticker:“IJH”,   issuer:“iShares”,     name:“Core S&P MidCap 400 ETF”,                        cat:“US Equities”,    fum:350,   hint:“US mid-cap companies — S&P 400 index”},
+{ticker:“IHD”,   issuer:“iShares”,     name:“S&P/ASX Dividend Opportunities ESG ETF”,         cat:“AUS Income”,     fum:357,   hint:“Dividend-screened ASX stocks with ESG filter”},
+{ticker:“IHHY”,  issuer:“iShares”,     name:“Global High Yield Bond (AUD Hedged) ETF”,        cat:“Fixed Income”,   fum:350,   hint:“Global high yield bonds, AUD hedged”},
+{ticker:“IXJ”,   issuer:“iShares”,     name:“Global Healthcare ETF”,                          cat:“Global Equities”,fum:310,   hint:“S&P Global Healthcare sector exposure”},
+{ticker:“IHOO”,  issuer:“iShares”,     name:“Global 100 AUD Hedged ETF”,                      cat:“Global Equities”,fum:300,   hint:“100 largest global stocks, AUD hedged”},
+{ticker:“IGB”,   issuer:“iShares”,     name:“UBS Treasury ETF”,                               cat:“Fixed Income”,   fum:400,   hint:“Australian government treasury bonds”},
+{ticker:“IJR”,   issuer:“iShares”,     name:“Core S&P SmallCap 600 ETF”,                      cat:“US Equities”,    fum:290,   hint:“US small-cap companies — S&P 600 index”},
+{ticker:“ILB”,   issuer:“iShares”,     name:“UBS Government Inflation ETF”,                   cat:“Fixed Income”,   fum:300,   hint:“Australian inflation-linked government bonds”},
+{ticker:“WDMF”,  issuer:“iShares”,     name:“Edge MSCI World Multifactor ETF”,                cat:“Global Equities”,fum:220,   hint:“Global multifactor strategy ex-Australia”},
+{ticker:“IEM2”,  issuer:“iShares”,     name:“MSCI Emerging Markets Minimum Volatility ETF”,   cat:“EM Equities”,    fum:200,   hint:“Low-volatility emerging market equities”},
+{ticker:“IRU”,   issuer:“iShares”,     name:“Russell 2000 ETF”,                               cat:“US Equities”,    fum:240,   hint:“2000 US small-cap stocks — Russell index”},
+{ticker:“IHEB”,  issuer:“iShares”,     name:“J.P. Morgan USD Emerging Markets Bond ETF”,      cat:“Fixed Income”,   fum:280,   hint:“EM sovereign USD bonds, AUD hedged”},
+{ticker:“IXI”,   issuer:“iShares”,     name:“Global Consumer Staples ETF”,                    cat:“Global Equities”,fum:210,   hint:“S&P Global Consumer Staples sector”},
+{ticker:“IAA”,   issuer:“iShares”,     name:“Asia 50 ETF”,                                    cat:“Asia Equities”,  fum:200,   hint:“50 largest Asia ex-Japan listed companies”},
+{ticker:“ISO”,   issuer:“iShares”,     name:“S&P/ASX Small Ordinaries ETF”,                   cat:“AUS Equities”,   fum:192,   hint:“ASX small-cap stocks — S&P Small Ordinaries”},
+{ticker:“IZZ”,   issuer:“iShares”,     name:“China Large-Cap ETF”,                            cat:“EM Equities”,    fum:180,   hint:“25 largest China-listed companies”},
+{ticker:“AUMF”,  issuer:“iShares”,     name:“Edge MSCI Australia Multifactor ETF”,            cat:“AUS Equities”,   fum:144,   hint:“ASX multifactor — value, quality, momentum”},
+
+// VANECK
+{ticker:“QUAL”,  issuer:“VanEck”,      name:“MSCI International Quality ETF”,                 cat:“Global Equities”,fum:7150,  hint:“Quality-factor global equities, unhedged”},
+{ticker:“MVW”,   issuer:“VanEck”,      name:“Australian Equal Weight ETF”,                    cat:“AUS Equities”,   fum:3241,  hint:“ASX 200 with equal weighting, not market-cap”},
+{ticker:“MOAT”,  issuer:“VanEck”,      name:“Morningstar Wide Moat ETF”,                      cat:“US Equities”,    fum:2200,  hint:“US companies with durable competitive moats”},
+{ticker:“GOAT”,  issuer:“VanEck”,      name:“Morningstar International Wide Moat ETF”,        cat:“Global Equities”,fum:1200,  hint:“Non-US developed market wide moat stocks”},
+{ticker:“MVA”,   issuer:“VanEck”,      name:“Australian Property ETF”,                        cat:“AUS Property”,   fum:867,   hint:“MVIS Australia A-REITs index tracker”},
+{ticker:“QHAL”,  issuer:“VanEck”,      name:“MSCI International Quality Hedged ETF”,          cat:“Global Equities”,fum:800,   hint:“Quality-factor global equities, AUD hedged”},
+{ticker:“SEMI”,  issuer:“VanEck”,      name:“Semiconductor ETF”,                              cat:“Thematic”,       fum:540,   hint:“Global semiconductor companies”},
+{ticker:“FLOT”,  issuer:“VanEck”,      name:“Australian Floating Rate ETF”,                   cat:“Fixed Income”,   fum:540,   hint:“AUD floating rate notes — credit exposure”},
+{ticker:“VLUE”,  issuer:“VanEck”,      name:“MSCI International Value ETF”,                   cat:“Global Equities”,fum:650,   hint:“Value-factor international equities”},
+{ticker:“GDX”,   issuer:“VanEck”,      name:“Gold Miners ETF”,                                cat:“Commodities”,    fum:580,   hint:“NYSE Arca Gold Miners index — global miners”},
+{ticker:“IFRA”,  issuer:“VanEck”,      name:“FTSE Global Infrastructure (Hedged) ETF”,        cat:“Global Equities”,fum:550,   hint:“Developed market infrastructure, AUD hedged”},
+{ticker:“MVR”,   issuer:“VanEck”,      name:“Australian Resources ETF”,                       cat:“AUS Resources”,  fum:485,   hint:“MVIS Australia Resources index tracker”},
+{ticker:“MVE”,   issuer:“VanEck”,      name:“S&P/ASX MidCap ETF”,                             cat:“AUS Equities”,   fum:482,   hint:“S&P/ASX Midcap 50 — mid-tier ASX stocks”},
+{ticker:“QSML”,  issuer:“VanEck”,      name:“MSCI International Small Companies Quality ETF”, cat:“Global Equities”,fum:470,   hint:“Quality-screened global small-cap equities”},
+{ticker:“SUBD”,  issuer:“VanEck”,      name:“Australian Subordinated Debt ETF”,               cat:“Fixed Income”,   fum:440,   hint:“AUD subordinated debt from major banks”},
+{ticker:“PLUS”,  issuer:“VanEck”,      name:“Australian Corporate Bond Plus ETF”,             cat:“Fixed Income”,   fum:400,   hint:“Higher-yield AUD corporate bonds”},
+{ticker:“EMKT”,  issuer:“VanEck”,      name:“MSCI Multifactor Emerging Markets ETF”,          cat:“EM Equities”,    fum:380,   hint:“Multifactor-screened emerging market stocks”},
+{ticker:“REIT”,  issuer:“VanEck”,      name:“FTSE International Property (Hedged) ETF”,       cat:“Global Property”,fum:360,   hint:“Developed market REITs ex-Australia, hedged”},
+{ticker:“HLTH”,  issuer:“VanEck”,      name:“Global Healthcare Leaders ETF”,                  cat:“Global Equities”,fum:320,   hint:“Developed markets ex-Aus healthcare stocks”},
+{ticker:“ESGI”,  issuer:“VanEck”,      name:“MSCI International Sustainable Equity ETF”,      cat:“Global ESG”,     fum:300,   hint:“Ex-fossil fuels/weapons global equities”},
+{ticker:“MVB”,   issuer:“VanEck”,      name:“Australian Banks ETF”,                           cat:“AUS Financials”, fum:269,   hint:“MVIS Australia Banks Index — big four + more”},
+{ticker:“GRNV”,  issuer:“VanEck”,      name:“MSCI Australian Sustainable Equity ETF”,         cat:“AUS ESG”,        fum:271,   hint:“ASX stocks screened by MSCI ESG SRI index”},
+{ticker:“GCAP”,  issuer:“VanEck”,      name:“Bentham Global Capital Securities Active ETF”,   cat:“Fixed Income”,   fum:250,   hint:“Active global hybrid and capital securities”},
+{ticker:“EBND”,  issuer:“VanEck”,      name:“Emerging Income Opportunities Active ETF”,       cat:“Fixed Income”,   fum:230,   hint:“Active EM debt — sovereign and corporate”},
+{ticker:“DVDY”,  issuer:“VanEck”,      name:“Morningstar Australian Moat Income ETF”,         cat:“AUS Income”,     fum:220,   hint:“Australian dividend yield focus stocks”},
+{ticker:“CLNE”,  issuer:“VanEck”,      name:“Global Clean Energy ETF”,                        cat:“Thematic”,       fum:200,   hint:“Clean energy and renewables globally”},
+{ticker:“MVS”,   issuer:“VanEck”,      name:“Small Companies Masters ETF”,                    cat:“AUS Equities”,   fum:225,   hint:“MVIS ASX small-cap dividend payers”},
+{ticker:“ESPO”,  issuer:“VanEck”,      name:“Video Gaming and eSports ETF”,                   cat:“Thematic”,       fum:170,   hint:“MVIS global video gaming and esports”},
+{ticker:“CETF”,  issuer:“VanEck”,      name:“FTSE China A50 ETF”,                             cat:“EM Equities”,    fum:160,   hint:“50 largest A-share listed Chinese companies”},
+{ticker:“CNEW”,  issuer:“VanEck”,      name:“China New Economy ETF”,                          cat:“EM Equities”,    fum:140,   hint:“MarketGrader China new economy stocks”},
+
+// STATE STREET (SPDR)
+{ticker:“STW”,   issuer:“SPDR”,        name:“S&P/ASX 200 Fund”,                               cat:“AUS Equities”,   fum:6162,  hint:“Oldest ASX 200 ETF — first listed in 2001”},
+{ticker:“SFY”,   issuer:“SPDR”,        name:“S&P/ASX 50 Fund”,                                cat:“AUS Equities”,   fum:737,   hint:“50 largest blue-chip ASX companies”},
+{ticker:“SYI”,   issuer:“SPDR”,        name:“MSCI Australia Select High Dividend Yield Fund”,  cat:“AUS Income”,     fum:566,   hint:“High dividend yield ASX stocks, MSCI screen”},
+{ticker:“SLF”,   issuer:“SPDR”,        name:“S&P/ASX 200 Listed Property Fund”,               cat:“AUS Property”,   fum:544,   hint:“ASX 200 A-REITs exposure”},
+{ticker:“WDIV”,  issuer:“SPDR”,        name:“S&P Global Dividend Fund”,                       cat:“Global Income”,  fum:480,   hint:“Global dividend aristocrats — decades of growth”},
+{ticker:“WXOZ”,  issuer:“SPDR”,        name:“S&P World ex Australia Fund”,                    cat:“Global Equities”,fum:657,   hint:“S&P developed ex-Australia large and mid-cap”},
+{ticker:“WXHG”,  issuer:“SPDR”,        name:“S&P World ex Australia Hedged Fund”,             cat:“Global Equities”,fum:390,   hint:“S&P developed ex-AUS, AUD hedged”},
+{ticker:“DJRE”,  issuer:“SPDR”,        name:“Dow Jones Global Real Estate Fund”,              cat:“Global Property”,fum:320,   hint:“Global listed real estate securities”},
+{ticker:“E200”,  issuer:“SPDR”,        name:“S&P/ASX 200 ESG Fund”,                           cat:“AUS ESG”,        fum:255,   hint:“ASX 200 with ESG carbon control screen”},
+{ticker:“OZR”,   issuer:“SPDR”,        name:“S&P/ASX 200 Resources Fund”,                     cat:“AUS Resources”,  fum:220,   hint:“ASX 200 materials and energy sector”},
+{ticker:“BOND”,  issuer:“SPDR”,        name:“S&P/ASX Australian Bond Fund”,                   cat:“Fixed Income”,   fum:200,   hint:“Broad AUS fixed income index”},
+{ticker:“GOVT”,  issuer:“SPDR”,        name:“S&P/ASX Australian Government Bond Fund”,        cat:“Fixed Income”,   fum:180,   hint:“AUS federal and state government bonds”},
+{ticker:“SPY”,   issuer:“SPDR”,        name:“S&P 500 ETF Trust”,                              cat:“US Equities”,    fum:320,   hint:“World’s largest ETF — also listed on ASX”},
+{ticker:“OZF”,   issuer:“SPDR”,        name:“S&P/ASX 200 Financials ex A-REIT Fund”,         cat:“AUS Financials”, fum:53,    hint:“ASX 200 financials sector, excluding property”},
+{ticker:“WEMG”,  issuer:“SPDR”,        name:“S&P Emerging Markets Carbon Control Fund”,       cat:“EM Equities”,    fum:180,   hint:“EM equities with carbon intensity screen”},
+
+// GLOBAL X
+{ticker:“FANG”,  issuer:“Global X”,    name:“FANG+ ETF”,                                      cat:“US Tech”,        fum:1800,  hint:“10 mega-cap US tech and digital economy stocks”},
+{ticker:“ACDC”,  issuer:“Global X”,    name:“Battery Tech and Lithium ETF”,                   cat:“Thematic”,       fum:480,   hint:“Lithium miners, battery manufacturers globally”},
+{ticker:“TECH”,  issuer:“Global X”,    name:“Morningstar Global Technology ETF”,              cat:“Global Tech”,    fum:420,   hint:“Morningstar tech moat focus index, global”},
+{ticker:“ATOM”,  issuer:“Global X”,    name:“Uranium ETF”,                                    cat:“Thematic”,       fum:310,   hint:“Uranium miners and nuclear energy companies”},
+{ticker:“ROBO”,  issuer:“Global X”,    name:“Robotics and Automation ETF”,                    cat:“Thematic”,       fum:260,   hint:“ROBO Global robotics and automation index”},
+{ticker:“WWWW”,  issuer:“Global X”,    name:“Magnificent 7+ ETF”,                             cat:“US Tech”,        fum:240,   hint:“Solactive Magnificent 7+ mega-cap US tech”},
+{ticker:“HUGE”,  issuer:“Global X”,    name:“US Technology ETF”,                              cat:“US Tech”,        fum:180,   hint:“Solactive US Technology index tracker”},
+{ticker:“BEST”,  issuer:“Global X”,    name:“US Quality ETF”,                                 cat:“US Equities”,    fum:160,   hint:“Solactive US Quality Cash Flow index”},
+{ticker:“ZYAU”,  issuer:“Global X”,    name:“S&P/ASX 200 High Dividend ETF”,                  cat:“AUS Income”,     fum:86,    hint:“ASX 200 shareholder yield — dividends + buybacks”},
+
+// RUSSELL
+{ticker:“RARI”,  issuer:“Russell”,     name:“Australian Responsible Investment ETF”,          cat:“AUS ESG”,        fum:461,   hint:“ESG + high dividend ASX equities combined”},
+{ticker:“RDV”,   issuer:“Russell”,     name:“High Dividend Australian Shares ETF”,            cat:“AUS Income”,     fum:306,   hint:“Russell high dividend yield ASX index”},
+{ticker:“RVL”,   issuer:“Russell”,     name:“Australian Value ETF”,                           cat:“AUS Equities”,   fum:200,   hint:“Russell value factor, ASX-listed stocks”},
+{ticker:“RGB”,   issuer:“Russell”,     name:“Australian Government Bond ETF”,                 cat:“Fixed Income”,   fum:180,   hint:“Broad AUS government bond universe”},
+{ticker:“RCB”,   issuer:“Russell”,     name:“Australian Select Corporate Bond ETF”,           cat:“Fixed Income”,   fum:160,   hint:“Investment grade AUD corporate bonds”},
+{ticker:“RSM”,   issuer:“Russell”,     name:“Australian Semi-Government Bond ETF”,            cat:“Fixed Income”,   fum:140,   hint:“State government (semi-govt) bonds”},
+
+// PERTH MINT / ETF SECURITIES
+{ticker:“PMGOLD”,issuer:“Perth Mint”,  name:“Gold ETF AUD”,                                   cat:“Commodities”,    fum:650,   hint:“Perth Mint gold — AUD-denominated, Aust govt backed”},
+{ticker:“ZGOL”,  issuer:“ETF Securities”,name:“ANZ ETFS Physical Gold ETF”,                  cat:“Commodities”,    fum:340,   hint:“Physically-backed gold, USD price exposure”},
+{ticker:“ESTX”,  issuer:“ETF Securities”,name:“Euro Stoxx 50 ETF”,                           cat:“Global Equities”,fum:120,   hint:“50 largest eurozone-listed companies”},
+
+// MAGELLAN
+{ticker:“MGE”,   issuer:“Magellan”,    name:“Global Fund Open Class ETF”,                     cat:“Global Equities”,fum:1800,  hint:“Active global quality equities — Magellan AM”},
+{ticker:“MHH”,   issuer:“Magellan”,    name:“High Conviction Trust ETF”,                      cat:“Global Equities”,fum:600,   hint:“Concentrated 8–12 stock active global fund”},
+
+// DIMENSIONAL
+{ticker:“DFAQ”,  issuer:“Dimensional”, name:“Australian Core Equity Trust ETF”,               cat:“AUS Equities”,   fum:5000,  hint:“Dimensional factor-based AUS equities”},
+{ticker:“DFGQ”,  issuer:“Dimensional”, name:“Global Core Equity Trust ETF”,                   cat:“Global Equities”,fum:6500,  hint:“Dimensional global factor equity strategy”},
+{ticker:“DFTQ”,  issuer:“Dimensional”, name:“Global Target Value Trust ETF”,                  cat:“Global Equities”,fum:4500,  hint:“Dimensional value-tilt global equities”},
+];
+
+// Competitor groups — tickers that directly compete for the same investor dollar
+const COMPETITOR_GROUPS = [
+// AUS Broad Equities
+[“VAS”,“IOZ”,“A200”,“STW”,“SFY”],
+// AUS Small Cap
+[“VSO”,“ISO”,“SSO”,“MVS”,“SMLL”,“EX20”],
+// AUS Mid Cap
+[“MVE”,“EX20”],
+// AUS Equal Weight / Smart Beta
+[“MVW”,“QOZ”],
+// AUS High Dividend
+[“VHY”,“SYI”,“RDV”,“IHD”,“HVST”,“YMAX”,“DVDY”,“ZYAU”],
+// AUS ESG
+[“FAIR”,“VETH”,“IESG”,“GRNV”,“RARI”,“E200”],
+// AUS Property
+[“VAP”,“SLF”,“MVA”],
+// AUS Financials
+[“MVB”,“QFN”,“OZF”],
+// AUS Resources
+[“QRE”,“OZR”,“MVR”],
+// AUS Tech
+[“ATEC”],
+// AUS Active
+[“AASF”,“DFAQ”],
+// Global Broad Equities (unhedged)
+[“VGS”,“BGBL”,“IWLD”,“WXOZ”,“DFGQ”],
+// Global Broad Equities (hedged)
+[“VGAD”,“WXHG”,“IHWL”],
+// Global 100
+[“IOO”,“IHOO”],
+// US S&P 500 (unhedged)
+[“IVV”,“SPY”,“VTS”],
+// US S&P 500 (hedged)
+[“IHVV”],
+// US NASDAQ 100
+[“NDQ”,“HNDQ”],
+// US FANG / Mega-cap Tech
+[“FANG”,“WWWW”,“HUGE”],
+// US Small/Mid Cap
+[“IJH”,“IJR”,“IRU”],
+// Global Quality
+[“QUAL”,“QLTY”,“HQLT”,“QHAL”],
+// Global Wide Moat
+[“MOAT”,“GOAT”],
+// Global Value
+[“VLUE”,“VVLU”],
+// Global Multi-Factor
+[“WDMF”,“AUMF”,“VGMF”],
+// Global Min Vol
+[“VMIN”],
+// Global Small Cap Quality
+[“VISM”,“QSML”],
+// Europe ETFs
+[“IEU”,“VEQ”,“HEUR”,“ESTX”],
+// Japan ETFs
+[“IJP”,“HJPN”],
+// Asia ex-Japan
+[“IAA”,“VAE”],
+// Asia Tech
+[“ASIA”,“TECH”],
+// Emerging Markets
+[“VGE”,“IEM”,“IEMS”,“EMKT”,“WEMG”],
+// China
+[“IZZ”,“CNEW”,“CETF”],
+// India
+[“IIND”],
+// Diversified Multi-Asset (High Growth ~90%+)
+[“DHHF”,“VDHG”],
+// Diversified Multi-Asset (Growth ~70%)
+[“VDGR”,“DGGF”],
+// Diversified Multi-Asset (Balanced ~50%)
+[“VDBA”,“DBBF”],
+// Diversified Multi-Asset (Conservative)
+[“VDCO”],
+// ESG Multi-Asset
+[“DZZF”,“ETHI”,“HETH”,“VESG”],
+// Global ESG Equities
+[“ETHI”,“HETH”,“VESG”,“IWLD”,“ESGI”],
+// Global Infrastructure
+[“VBLD”,“IFRA”],
+// Global Property
+[“REIT”,“DJRE”],
+// Global Income / Dividend
+[“WDIV”,“INCM”],
+// AUS Broad Fixed Income
+[“VAF”,“IAF”,“BOND”,“OZBD”],
+// AUS Government Bonds
+[“VGB”,“IGB”,“AGVT”,“GOVT”,“RGB”],
+// AUS Corporate Bonds
+[“VACF”,“CRED”,“PLUS”,“RCB”],
+// AUS Floating Rate
+[“QPON”,“FLOT”],
+// AUS Hybrids
+[“HBRD”,“BHYB”],
+// AUS Subordinated Debt
+[“SUBD”],
+// AUS Inflation-Linked
+[“ILB”],
+// AUS Semi-Govt
+[“RSM”],
+// Global IG Bonds (hedged)
+[“VBND”,“IHCB”,“VCF”,“VIF”],
+// Global High Yield
+[“IHHY”],
+// Global Govt Long Duration
+[“GGOV”],
+// EM Bonds
+[“IHEB”,“EBND”],
+// ESG Bonds
+[“GBND”,“VEFI”],
+// Cash
+[“AAA”],
+// Gold (physical / hedged)
+[“QAU”,“PMGOLD”,“ZGOL”],
+// Gold Miners
+[“GDX”,“MNRS”],
+// Semiconductors
+[“SEMI”],
+// Cybersecurity
+[“HACK”],
+// Cloud Computing
+[“CLDD”],
+// Robotics / AI
+[“RBTZ”,“ROBO”],
+// Clean Energy
+[“CLNE”,“ERTH”,“ACDC”],
+// Bitcoin / Crypto
+[“QBTC”,“CRYP”],
+// Video Games / Esports
+[“GAME”,“ESPO”],
+// EV / Future Mobility
+[“DRIV”,“ACDC”],
+// Healthcare global
+[“IXJ”,“HLTH”,“DRUG”],
+// Agriculture
+[“FOOD”],
+// Energy
+[“FUEL”,“OOO”],
+// Consumer Staples
+[“IXI”],
+// Leveraged Long AUS
+[“GEAR”],
+// Leveraged Long US
+[“GGUS”],
+// Bear / Short AUS
+[“BEAR”,“BBOZ”],
+// Bear / Short US
+[“BBUS”],
+];
+
+function getCompetitors(ticker) {
+const byTicker = {};
+ETFs.forEach(e => { byTicker[e.ticker] = e; });
+const rivals = new Set();
+for (const group of COMPETITOR_GROUPS) {
+if (group.includes(ticker)) {
+group.forEach(t => { if (t !== ticker) rivals.add(t); });
+}
+}
+return […rivals]
+.filter(t => byTicker[t])
+.map(t => byTicker[t])
+.sort((a,b) => b.fum - a.fum)
+.slice(0, 4);
+}
+
+const MODES = [
+{label:“All”,          sub:“all”, fn: ()=>true},
+{label:“AUS Equities”, sub:“aus”, fn: e=>[“AUS Equities”,“AUS Tech”,“AUS Resources”,“AUS Financials”].includes(e.cat)},
+{label:“Global”,       sub:“gbl”, fn: e=>[“Global Equities”,“US Equities”,“US Tech”,“Asia Equities”,“Asia Tech”,“EM Equities”,“Global Tech”,“Global Income”].includes(e.cat)},
+{label:“Bonds & Cash”, sub:“fxi”, fn: e=>[“Fixed Income”,“Cash”].includes(e.cat)},
+{label:“Thematic”,     sub:“thm”, fn: e=>[“Thematic”,“Commodities”,“AUS Property”,“Global Property”,“Multi-Asset”,“AUS ESG”,“Global ESG”,“Alternatives”].includes(e.cat)},
+{label:“Top FUM”,      sub:“big”, fn: e=>e.fum>=1500},
+];
+
+const Q_COUNT = 20;
+let state = {screen:‘splash’, modeIdx:0, questions:[], current:0, score:0, answered:false, selectedIdx:null, streak:0, bestStreak:0};
+
+function shuffle(a){const b=[…a];for(let i=b.length-1;i>0;i–){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function pool(){return ETFs.filter(MODES[state.modeIdx].fn);}
+function fumFmt(f){return f>=1000?`$${(f/1000).toFixed(1)}b`:`$${f}m`;}
+function fumStars(f){if(f>=5000)return’★★★★★’;if(f>=2000)return’★★★★’;if(f>=1000)return’★★★’;if(f>=300)return’★★’;return’★’;}
+
+function buildQuestions(){
+const p=pool();
+const n=Math.min(Q_COUNT,p.length);
+return shuffle(p).slice(0,n).map(etf=>{
+const others=shuffle(ETFs.filter(e=>e.ticker!==etf.ticker)).slice(0,3);
+const opts=shuffle([etf,…others]);
+return {etf,opts,correctIdx:opts.indexOf(etf)};
+});
+}
+
+function startQuiz(){
+state.questions=buildQuestions();
+state.current=0; state.score=0; state.answered=false; state.selectedIdx=null; state.streak=0;
+state.screen=‘quiz’; render();
+}
+
+function handleAnswer(idx){
+if(state.answered)return;
+state.answered=true; state.selectedIdx=idx;
+const q=state.questions[state.current];
+if(idx===q.correctIdx){state.score++;state.streak++;if(state.streak>state.bestStreak)state.bestStreak=state.streak;}
+else state.streak=0;
+render();
+}
+
+function nextQuestion(){
+if(state.current+1>=state.questions.length){state.screen=‘results’;render();return;}
+state.current++;state.answered=false;state.selectedIdx=null;render();
+}
+
+function render(){
+const app=document.getElementById(‘app’);
+const letters=[‘A’,‘B’,‘C’,‘D’];
+
+if(state.screen===‘splash’){
+const issuers=[
+{n:“Vanguard”,fum:”$77b”},{n:“BetaShares”,fum:”$52b”},{n:“iShares”,fum:”$47b”},
+{n:“Dimensional”,fum:”$16b”},{n:“VanEck”,fum:”$23b”},{n:“Global X”,fum:”$10b”},
+{n:“SPDR”,fum:”$12b”},{n:“Magellan”,fum:”~$2b”},{n:“Russell”,fum:”~$1b”},{n:“Perth Mint”,fum:”~$1b”},
+];
+app.innerHTML=`<div class="splash"> <div class="logo" style="justify-content:center;align-items:center;margin-bottom:28px;"> <div class="logo-main">ASX Ticker Quiz</div> <div class="logo-sub">ETF Edition · ${ETFs.length} funds</div> </div> <div class="splash-title">Know your<br><span>tickers.</span></div> <p class="splash-sub">Drill the ticker codes for Australia's most important ETFs — every major issuer, ranked by FUM so you always learn the ones that matter.</p> <div class="issuers-grid">${issuers.map(i=>`<div class="issuer-chip">${i.n}<span>${i.fum}</span></div>`).join('')}</div> <div class="mode-selector">${MODES.map((m,i)=>{const cnt=ETFs.filter(m.fn).length;return`<button class="mode-btn${state.modeIdx===i?' active':''}" onclick="state.modeIdx=${i};render()">${m.label}<span class="mode-count">${cnt} ETFs</span></button>`;}).join('')}</div> <p style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:20px;">${Math.min(Q_COUNT,ETFs.filter(MODES[state.modeIdx].fn).length)} questions per round</p> <button class="btn-start" onclick="startQuiz()">Start Quiz →</button> <p class="note">Data approx. Dec 2025 · ★★★★★ = $5b+ · ★★★ = $1b+ · ★ = &lt;$300m<br>Sources: Stockspot, Vanguard, BetaShares, iShares, VanEck factsheets</p> </div>`;
+return;
+}
+
+if(state.screen===‘results’){
+const total=state.questions.length;
+const pct=Math.round((state.score/total)*100);
+const cls=pct>=80?‘great’:pct>=50?‘ok’:‘poor’;
+const msg=pct>=90?“You’re practically a PM at a fund.”:pct>=70?“Solid. A few more reps and you’re there.”:pct>=50?“Getting there — keep drilling.”:“Back to basics. That’s what practice is for.”;
+app.innerHTML=`<div class="results"> <div class="logo-main" style="margin-bottom:24px;">ASX Ticker Quiz</div> <div class="results-label">Your score</div> <div class="results-score ${cls}">${state.score}/${total}</div> <div class="results-label">${pct}%</div> <div class="results-msg">${msg}</div> <p class="results-sub">Mode: ${MODES[state.modeIdx].label} · ${state.score} correct of ${total}</p> ${state.bestStreak>=3?`<div class="streak-badge">🔥 Best streak: ${state.bestStreak} in a row</div>`:''} <button class="btn-next" onclick="startQuiz()">Play Again →</button> <button class="btn-restart" onclick="state.screen='splash';render()">↩ Change Mode</button> </div>`;
+return;
+}
+
+const q=state.questions[state.current];
+const total=state.questions.length;
+const pct=(state.current/total)*100;
+const optHTML=q.opts.map((opt,idx)=>{
+let cls=‘option’;
+if(state.answered){if(idx===q.correctIdx)cls+=state.selectedIdx===idx?’ correct’:’ reveal’;else if(idx===state.selectedIdx)cls+=’ wrong’;}
+return`<button class="${cls}" onclick="handleAnswer(${idx})" ${state.answered?'disabled':''}><div class="option-letter">${letters[idx]}</div><div class="option-ticker">${opt.ticker}</div></button>`;
+}).join(’’);
+
+const rivals = state.answered ? getCompetitors(q.etf.ticker) : [];
+const rivalsHTML = rivals.length > 0 ? ` <div class="competitors"> <div class="competitors-label">Also in this space</div> <div class="competitors-list"> ${rivals.map(r=>`<div class="competitor-row">
+<span class="competitor-ticker">${r.ticker}</span>
+<span class="competitor-issuer">${r.issuer}</span>
+<span class="competitor-name">${r.name}</span>
+<span class="competitor-fum">${fumFmt(r.fum)}</span>
+</div>`).join('')} </div> </div>` : ‘’;
+
+const fbHTML=state.answered?`<div class="feedback ${state.selectedIdx===q.correctIdx?'correct-fb':'wrong-fb'}"> <div class="fb-icon">${state.selectedIdx===q.correctIdx?'✓':'✗'}</div> <div class="fb-content"> <div class="fb-title">${state.selectedIdx===q.correctIdx?`Correct! ${q.etf.ticker}`:`The answer was ${q.etf.ticker}`}</div>
+<div class="fb-detail">${q.etf.issuer} · ${q.etf.name}<br>${q.etf.hint}<br><span style="color:var(--gold)">FUM ${fumFmt(q.etf.fum)} ${fumStars(q.etf.fum)}</span></div>
+</div>
+
+  </div>`:'';
+
+app.innerHTML=`<div> <div class="header"> <div class="logo"> <div class="logo-main">ASX Ticker Quiz</div> <div class="logo-sub">${MODES[state.modeIdx].label} · ETF Edition</div> </div> <div class="stats-bar"> <div class="stat"><div class="stat-val correct">${state.score}</div><div class="stat-label">Correct</div></div> <div class="divider-v"></div> <div class="stat"><div class="stat-val total">${state.current}</div><div class="stat-label">Done</div></div> ${state.streak>=2?`<div class="divider-v"></div><div class="stat"><div class="stat-val" style="color:var(--gold)">🔥${state.streak}</div><div class="stat-label">Streak</div></div>`:''} </div> </div> <div class="progress-wrap"> <div class="progress-meta"><span>Question ${state.current+1} of ${total}</span><span>${Math.round(pct)}%</span></div> <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div> </div> <div class="category-badge"><div class="category-dot"></div>${q.etf.cat} · ${q.etf.issuer}<span style="margin-left:6px;color:var(--gold)">${fumFmt(q.etf.fum)}</span></div> <div class="question-card"> <div class="q-label">What is the ASX ticker for this ETF?</div> <div class="q-text">${q.etf.name}</div> <div class="q-hint"><span class="hint-tag">Hint</span>${q.etf.hint}</div> </div> <div class="options">${optHTML}</div> ${fbHTML} ${rivalsHTML} ${state.answered?`<button class="btn-next" onclick="nextQuestion()">${state.current+1>=total?‘See Results’:‘Next Question’} →</button>`:’’}
+
+  </div>`;
+}
+render();
+</script>
+</body>
+</html>
